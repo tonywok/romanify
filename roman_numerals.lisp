@@ -1,4 +1,8 @@
-(defparameter *numerals* (list (cons 1000 "M") (cons 500 "D") (cons 100 "C") (cons 50 "L") (cons 10 "X") (cons 5 "V") (cons 1 "I")))
+;;; in general, if you want need this in production code, there is already
+;;; a FORMAT code for printing roman numerals:
+;;; http://www.lispworks.com/documentation/HyperSpec/Body/22_cba.htm
+
+(defparameter *numerals* '((1000 . "M") (500 . "D") (100 . "C") (50 . "L") (10 . "X") (5 . "V") (1 . "I")))
 
 (defun roman-for (num)
   (cdr (assoc num *numerals*)))
@@ -6,26 +10,28 @@
 (defun base-numbers ()
   (mapcar #'car *numerals*))
 
-(defun add-roman (num str base)
-  (if (eq 0 num) str
-    (add-roman (- num 1) (concatenate 'string str (roman-for base)) base)))
+(defun conc (&rest strings)
+  "Concatenates a number of STRINGS."
+  (apply #'concatenate 'string strings))
 
 (defun romanify (arabic-num)
   (labels ((add-roman (num str base)
-                      (if (eq 0 num)
-                        str
-                        (add-roman (- num 1) (concatenate 'string str (roman-for base)) base)))
-           (build (bases num str)
-                  (let ((base (car bases)))
-                    (if (eq 0 num) str                                         ; base case
-                      (multiple-value-bind (quotient remainder) (floor num base)
-                        (cond ((and (> quotient 0) (eq remainder 0))           ; base goes in evenly, append base(s)
-                                (build (cdr bases) remainder (add-roman quotient str base)))
-                              ((and (> quotient 0) (eq remainder (- base 1)))  ; base goes in evenly, append bases(s) & wierd leftover
-                                (concatenate 'string (add-roman quotient str base) (concatenate 'string str "I" (roman-for base))))
-                              ((and (> quotient 0) (< remainder (- base 1)))   ; base goes in evenly, handle leftover
-                                (build (cdr bases) remainder (add-roman quotient str base)))
-                              ((and (eq quotient 0) (eq remainder (- base 1))) ; wierd case (ie IV)
-                                (concatenate 'string str "I" (roman-for base)))
-                              (T (build (cdr bases) remainder str))))))))      ; bottom out
+       (if (= 0 num)
+     str
+     (add-roman (1- num) (conc str (roman-for base)) base)))
+     (build (bases num str)
+       (let ((base (car bases)))
+         (if (= 0 num)
+       str                                                            ; base case
+       (multiple-value-bind (quotient remainder) (floor num base)
+         (cond ((and (> quotient 0) (= remainder 0))                  ; base goes in evenly, append base(s)
+                 (build (cdr bases) remainder (add-roman quotient str base)))
+               ((and (> quotient 0) (= remainder (1- base)))          ; base goes in evenly, append bases(s) & wierd leftover
+                 (conc (add-roman quotient str base) str "I" (roman-for base)))
+               ((and (> quotient 0) (< remainder (1- base)))          ; base goes in evenly, handle leftover
+                 (build (cdr bases) remainder (add-roman quotient str base)))
+               ((and (= quotient 0) (= remainder (1- base)))          ; wierd case (ie IV)
+                 (conc str "I" (roman-for base)))
+               (T                                                     ; bottom out
+                 (build (cdr bases) remainder str))))))))
     (build (base-numbers) arabic-num "")))
